@@ -30,7 +30,7 @@ struct ProfileView: View {
     private let stone      = Color(hex: "8FA08E")   // 石青灰绿（第三色）
     private let stoneLight = Color(hex: "EEF2ED")   // 淡石青
     private let cardWhite  = Color.white
-    private let pageBg     = Color(hex: "F2EFE9")   // 温暖亚麻底色
+    private let pageBg     = Color(hex: "F5F7FA")   // 与其他页面统一底色
 
     private var bmi: Double {
         let heightInMeters = userHeight / 100.0
@@ -169,17 +169,17 @@ struct ProfileView: View {
                         .font(.system(size: 22, weight: .bold))
                         .foregroundColor(AppTheme.primaryText)
 
-                    Text("\(userWeight, specifier: "%.1f") kg  \(userGender)  \(userAge)岁")
+                    Text("\(userWeight, specifier: "%.2f") kg  \(userGender)  \(userAge)岁")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
                 }
 
                 HStack(spacing: 4) {
-                    Text("\(userWeight, specifier: "%.1f")")
+                    Text("\(userWeight, specifier: "%.2f")")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                     Image(systemName: "arrow.right")
                         .font(.system(size: 8, weight: .bold))
-                    Text("\(goalWeight, specifier: "%.1f") kg")
+                    Text("\(goalWeight, specifier: "%.2f") kg")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                 }
                 .foregroundColor(.secondary.opacity(0.6))
@@ -245,7 +245,7 @@ struct ProfileView: View {
 
                 Spacer().frame(height: 12)
 
-                Text("\(userWeight, specifier: "%.1f")")
+                Text("\(userWeight, specifier: "%.2f")")
                     .font(.system(size: 36, weight: .heavy, design: .rounded))
                     .foregroundColor(AppTheme.primaryText)
                 + Text(" kg")
@@ -504,7 +504,7 @@ struct WeightHistoryView: View {
                 ForEach(records) { record in
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("\(record.weight, specifier: "%.1f") kg")
+                            Text(String(format: "%.2f kg", record.weight))
                                 .font(.headline)
                                 .foregroundColor(Color(hex: "4A3F8F"))
                             if let note = record.note, !note.isEmpty {

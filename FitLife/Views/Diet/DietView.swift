@@ -204,6 +204,14 @@ struct DietView: View {
         fastingTimer = nil
     }
 
+    /// 将秒数格式化为 "H:MM" 倒计时样式
+    private func formatHHMM(_ seconds: Double) -> String {
+        let total = max(Int(seconds), 0)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        return String(format: "%d:%02d", h, m)
+    }
+
     private func formatDuration(_ seconds: Double) -> String {
         let total = max(Int(seconds), 0)
         let h = total / 3600
@@ -214,37 +222,72 @@ struct DietView: View {
 
     private var fastingCard: some View {
         HStack(spacing: 14) {
-            // Circular progress ring
+            // MARK: 双环进度圈
             ZStack {
+                // 底环
                 Circle()
-                    .stroke(AppTheme.lightGreen.opacity(0.3), lineWidth: 8)
-                    .frame(width: 64, height: 64)
+                    .stroke(AppTheme.lightGreen.opacity(0.25), lineWidth: 8)
+                    .frame(width: 68, height: 68)
 
+                // 外环：禁食进度（绿色）
                 Circle()
                     .trim(from: 0, to: fastingProgress)
-                    .stroke(
-                        isInFastingPhase ? AppTheme.primaryGreen : Color(hex: "8BE4A8"),
-                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                    )
-                    .frame(width: 64, height: 64)
+                    .stroke(AppTheme.primaryGreen,
+                            style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .frame(width: 68, height: 68)
                     .rotationEffect(.degrees(-90))
                     .animation(.easeInOut(duration: 0.5), value: fastingProgress)
 
-                VStack(spacing: 0) {
+                // 内环：进食窗口进度（黄色，仅进食阶段显示）
+                if isFasting && !isInFastingPhase {
+                    let eatingElapsed = fastingElapsed - fastingTotalSeconds
+                    let ep = min(eatingElapsed / eatingTotalSeconds, 1.0)
+                    Circle()
+                        .stroke(AppTheme.warmYellow.opacity(0.25), lineWidth: 5)
+                        .frame(width: 50, height: 50)
+                    Circle()
+                        .trim(from: 0, to: ep)
+                        .stroke(AppTheme.warmYellow,
+                                style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                        .frame(width: 50, height: 50)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.easeInOut(duration: 0.5), value: ep)
+                }
+
+                // 中心文字
+                if isFasting {
+                    if isInFastingPhase {
+                        let remaining = fastingTotalSeconds - fastingElapsed
+                        VStack(spacing: 1) {
+                            Text(formatHHMM(remaining))
+                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .foregroundColor(AppTheme.primaryText)
+                            Text("还差")
+                                .font(.system(size: 7, weight: .medium))
+                                .foregroundColor(AppTheme.secondaryText)
+                        }
+                    } else {
+                        let eatingElapsed = fastingElapsed - fastingTotalSeconds
+                        let eatingRemaining = max(eatingTotalSeconds - eatingElapsed, 0)
+                        VStack(spacing: 1) {
+                            Text(eatingRemaining > 0 ? formatHHMM(eatingRemaining) : "结束")
+                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .foregroundColor(AppTheme.warmYellow)
+                            Text("可进食")
+                                .font(.system(size: 7, weight: .medium))
+                                .foregroundColor(AppTheme.warmYellow.opacity(0.8))
+                        }
+                    }
+                } else {
                     Text("\(fastingMode):\(fastingEatingHours)")
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundColor(AppTheme.primaryText)
-                    if isFasting {
-                        Text(isInFastingPhase ? "禁食" : "进食")
-                            .font(.system(size: 8, weight: .medium))
-                            .foregroundColor(isInFastingPhase ? AppTheme.primaryGreen : AppTheme.warmYellow)
-                    }
                 }
             }
 
-            // Info & controls
+            // MARK: 信息区
             VStack(alignment: .leading, spacing: 6) {
-                // Mode picker
+                // 模式选择
                 HStack(spacing: 6) {
                     ForEach([16, 18, 20], id: \.self) { mode in
                         Button {
@@ -264,33 +307,64 @@ struct DietView: View {
                     }
                 }
 
-                // Status text
+                // 状态文字
                 if isFasting {
                     if isInFastingPhase {
-                        let remaining = fastingTotalSeconds - fastingElapsed
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("禁食中 \(formatDuration(fastingElapsed))")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(AppTheme.primaryGreen)
-                            Text("剩余 \(formatDuration(remaining))")
-                                .font(.system(size: 10))
+                        let elapsedH = Int(fastingElapsed) / 3600
+                        let elapsedM = (Int(fastingElapsed) % 3600) / 60
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 4) {
+                                Text("禁食中")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(AppTheme.primaryGreen)
+                                Text("· 已坚持 \(elapsedH)h \(elapsedM)m")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(AppTheme.secondaryText)
+                            }
+                            // 进度条
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(AppTheme.lightGreen.opacity(0.4))
+                                        .frame(height: 5)
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(AppTheme.primaryGreen)
+                                        .frame(width: geo.size.width * fastingProgress, height: 5)
+                                        .animation(.easeInOut(duration: 0.5), value: fastingProgress)
+                                }
+                            }
+                            .frame(height: 5)
+                            Text("\(Int(fastingProgress * 100))% · 目标 \(fastingMode)h")
+                                .font(.system(size: 9))
                                 .foregroundColor(AppTheme.secondaryText)
                         }
                     } else {
                         let eatingElapsed = fastingElapsed - fastingTotalSeconds
                         let eatingRemaining = eatingTotalSeconds - eatingElapsed
-                        if eatingRemaining > 0 {
-                            Text("进食窗口 还剩 \(formatDuration(eatingRemaining))")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(AppTheme.warmYellow)
-                        } else {
-                            Text("本轮已结束")
-                                .font(.system(size: 11))
-                                .foregroundColor(AppTheme.secondaryText)
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(AppTheme.primaryGreen)
+                                Text("禁食达标！进食窗口开放中")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(AppTheme.primaryGreen)
+                            }
+                            if eatingRemaining > 0 {
+                                let eH = Int(eatingRemaining) / 3600
+                                let eM = (Int(eatingRemaining) % 3600) / 60
+                                Text("进食窗口还剩 \(eH)h \(eM)m")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(AppTheme.warmYellow)
+                            } else {
+                                Text("本轮已结束，可开始下一轮")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(AppTheme.secondaryText)
+                            }
                         }
                     }
                 } else {
-                    Text("轻断食计时器")
+                    Text("点击 ▶ 开始计时")
                         .font(.system(size: 11))
                         .foregroundColor(AppTheme.secondaryText)
                 }
@@ -298,7 +372,7 @@ struct DietView: View {
 
             Spacer()
 
-            // Start / Stop button
+            // 开始 / 停止
             Button {
                 if isFasting {
                     fastingStartTimeInterval = 0
@@ -751,6 +825,7 @@ struct MealFoodInputView: View {
                             date: .now,
                             mealType: mealType,
                             foodName: foodName.isEmpty ? "食物" : foodName,
+                            weight: weight,
                             calories: calories,
                             protein: protein,
                             carbs: carbs,
@@ -850,8 +925,8 @@ struct FoodHistoryView: View {
     let allRecords: [FoodRecord]
 
     @State private var searchText = ""
+    @State private var adjustingRecord: FoodRecord? = nil
 
-    /// Deduplicated by food name, sorted by most recent
     private var uniqueFoods: [FoodRecord] {
         var seen = Set<String>()
         var result: [FoodRecord] = []
@@ -883,7 +958,7 @@ struct FoodHistoryView: View {
                     List {
                         ForEach(uniqueFoods, id: \.id) { record in
                             Button {
-                                addRecord(from: record)
+                                adjustingRecord = record
                             } label: {
                                 HStack(spacing: 12) {
                                     if let imageData = record.imageData, let uiImage = UIImage(data: imageData) {
@@ -906,9 +981,17 @@ struct FoodHistoryView: View {
                                         Text(record.foodName)
                                             .font(.subheadline.weight(.medium))
                                             .foregroundColor(AppTheme.primaryText)
-                                        Text("蛋白质 \(String(format: "%.1f", record.protein))g · 碳水 \(String(format: "%.1f", record.carbs))g · 脂肪 \(String(format: "%.1f", record.fat))g")
-                                            .font(.caption2)
-                                            .foregroundColor(AppTheme.secondaryText)
+                                        HStack(spacing: 4) {
+                                            Text("\(Int(record.weight))g")
+                                                .font(.caption2.weight(.semibold))
+                                                .foregroundColor(AppTheme.primaryGreen)
+                                            Text("·")
+                                                .font(.caption2)
+                                                .foregroundColor(AppTheme.secondaryText)
+                                            Text("蛋白 \(String(format: "%.1f", record.protein))g · 碳水 \(String(format: "%.1f", record.carbs))g · 脂肪 \(String(format: "%.1f", record.fat))g")
+                                                .font(.caption2)
+                                                .foregroundColor(AppTheme.secondaryText)
+                                        }
                                     }
 
                                     Spacer()
@@ -944,25 +1027,198 @@ struct FoodHistoryView: View {
                 }
             }
             .background(AppTheme.background.ignoresSafeArea())
+            .sheet(item: $adjustingRecord) { record in
+                WeightAdjustSheet(source: record, mealType: mealType) {
+                    dismiss()
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 克重调整 Sheet
+
+struct WeightAdjustSheet: View {
+    let source: FoodRecord
+    let mealType: MealType
+    let onSaved: () -> Void
+
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @State private var weight: Double
+
+    init(source: FoodRecord, mealType: MealType, onSaved: @escaping () -> Void) {
+        self.source = source
+        self.mealType = mealType
+        self.onSaved = onSaved
+        self._weight = State(initialValue: source.weight)
+    }
+
+    private var ratio: Double { weight / max(source.weight, 1) }
+    private var adjCalories: Double { source.calories * ratio }
+    private var adjProtein:  Double { source.protein  * ratio }
+    private var adjCarbs:    Double { source.carbs    * ratio }
+    private var adjFat:      Double { source.fat      * ratio }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // 食物标题
+                HStack(spacing: 12) {
+                    if let data = source.imageData, let img = UIImage(data: data) {
+                        Image(uiImage: img)
+                            .resizable().scaledToFill()
+                            .frame(width: 52, height: 52)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    } else {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(AppTheme.lightGreen)
+                                .frame(width: 52, height: 52)
+                            Image(systemName: "fork.knife")
+                                .foregroundColor(AppTheme.primaryGreen)
+                                .font(.title3)
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(source.foodName)
+                            .font(.headline)
+                        Text("上次记录：\(Int(source.weight))g · \(Int(source.calories)) 千卡")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 16)
+
+                Divider()
+
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // 克重输入
+                        VStack(spacing: 12) {
+                            Text("本次克重")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            HStack(spacing: 12) {
+                                Button { weight = max(1, weight - 10) } label: {
+                                    Image(systemName: "minus")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .frame(width: 36, height: 36)
+                                        .background(Color(.systemGray5))
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                }
+                                HStack(spacing: 4) {
+                                    TextField("100", value: $weight, format: .number.precision(.fractionLength(0)))
+                                        .keyboardType(.decimalPad)
+                                        .multilineTextAlignment(.center)
+                                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                                        .foregroundColor(AppTheme.primaryGreen)
+                                        .frame(width: 100)
+                                    Text("g")
+                                        .font(.title2)
+                                        .foregroundColor(.secondary)
+                                }
+                                Button { weight += 10 } label: {
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .frame(width: 36, height: 36)
+                                        .background(Color(.systemGray5))
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                }
+                            }
+
+                            Slider(value: $weight, in: 1...1000, step: 5)
+                                .tint(AppTheme.primaryGreen)
+                        }
+                        .padding(.horizontal, 20)
+                        .toolbar {
+                            ToolbarItemGroup(placement: .keyboard) {
+                                Spacer()
+                                Button("完成") {
+                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                }
+                            }
+                        }
+
+                        // 换算后营养预览
+                        VStack(spacing: 8) {
+                            Text("换算后营养")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            HStack(spacing: 0) {
+                                nutriCell(label: "热量", value: String(format: "%.0f", adjCalories), unit: "千卡", color: AppTheme.primaryGreen)
+                                Divider().frame(height: 40)
+                                nutriCell(label: "蛋白质", value: String(format: "%.1f", adjProtein), unit: "g", color: AppTheme.softBlue)
+                                Divider().frame(height: 40)
+                                nutriCell(label: "碳水", value: String(format: "%.1f", adjCarbs), unit: "g", color: AppTheme.warmYellow)
+                                Divider().frame(height: 40)
+                                nutriCell(label: "脂肪", value: String(format: "%.1f", adjFat), unit: "g", color: AppTheme.coral)
+                            }
+                            .padding(.vertical, 10)
+                            .background(AppTheme.surfaceColor)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .shadow(color: AppTheme.shadowColor, radius: AppTheme.shadowRadius, x: 0, y: AppTheme.shadowY)
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                    .padding(.top, 20)
+                }
+
+                // 添加按钮
+                Button {
+                    let record = FoodRecord(
+                        date: .now,
+                        mealType: mealType,
+                        foodName: source.foodName,
+                        weight: weight,
+                        calories: adjCalories,
+                        protein: adjProtein,
+                        carbs: adjCarbs,
+                        fat: adjFat,
+                        fiber: source.fiber * ratio,
+                        waterMl: source.waterMl * ratio,
+                        imageData: source.imageData
+                    )
+                    modelContext.insert(record)
+                    try? modelContext.save()
+                    dismiss()
+                    onSaved()
+                } label: {
+                    Text("添加到\(mealType.label)")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(AppTheme.primaryGreen)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+            }
+            .navigationTitle("调整克重")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") { dismiss() }
+                }
+            }
         }
     }
 
-    private func addRecord(from record: FoodRecord) {
-        let newRecord = FoodRecord(
-            date: .now,
-            mealType: mealType,
-            foodName: record.foodName,
-            calories: record.calories,
-            protein: record.protein,
-            carbs: record.carbs,
-            fat: record.fat,
-            fiber: record.fiber,
-            waterMl: record.waterMl,
-            imageData: record.imageData
-        )
-        modelContext.insert(newRecord)
-        try? modelContext.save()
-        dismiss()
+    private func nutriCell(label: String, value: String, unit: String, color: Color) -> some View {
+        VStack(spacing: 3) {
+            Text(label).font(.system(size: 10)).foregroundColor(.secondary)
+            Text(value).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(color)
+            Text(unit).font(.system(size: 9)).foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

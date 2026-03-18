@@ -7,6 +7,7 @@ final class FoodRecord {
     var date: Date
     var mealTypeRaw: String
     var foodName: String
+    var weight: Double = 100   // 克重，默认100g
     var calories: Double
     var protein: Double
     var carbs: Double
@@ -25,6 +26,7 @@ final class FoodRecord {
         date: Date = .now,
         mealType: MealType = .breakfast,
         foodName: String,
+        weight: Double = 100,
         calories: Double = 0,
         protein: Double = 0,
         carbs: Double = 0,
@@ -37,6 +39,7 @@ final class FoodRecord {
         self.date = date
         self.mealTypeRaw = mealType.rawValue
         self.foodName = foodName
+        self.weight = weight
         self.calories = calories
         self.protein = protein
         self.carbs = carbs

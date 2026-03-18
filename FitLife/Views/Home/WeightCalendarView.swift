@@ -99,7 +99,7 @@ struct WeightCalendarView: View {
                         HStack(spacing: 1) {
                             Image(systemName: change > 0 ? "arrow.up" : change < 0 ? "arrow.down" : "minus")
                                 .font(.system(size: 6, weight: .bold))
-                            Text(String(format: "%.1f", abs(change)))
+                            Text(String(format: "%.2f", abs(change)))
                                 .font(.system(size: 7, weight: .semibold))
                         }
                         .foregroundColor(Color(hex: "657166"))
@@ -109,7 +109,7 @@ struct WeightCalendarView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 3))
                     }
 
-                    Text(String(format: "%.1f", weight))
+                    Text(String(format: "%.2f", weight))
                         .font(.system(size: 7))
                         .foregroundColor(.secondary)
                 }

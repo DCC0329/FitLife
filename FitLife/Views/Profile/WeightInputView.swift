@@ -5,12 +5,15 @@ import PhotosUI
 struct WeightInputView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \WeightRecord.date, order: .reverse) private var existingRecords: [WeightRecord]
 
     @State private var weight: Double = 65.0
     @State private var note: String = ""
     @State private var selectedDate: Date = .now
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedPhotoData: Data?
+    @State private var showComparisonAlert = false
+    @State private var weightDiff: Double = 0
 
     var body: some View {
         NavigationStack {
@@ -24,7 +27,7 @@ struct WeightInputView: View {
                         .foregroundColor(.secondary)
 
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        TextField("65.0", value: $weight, format: .number)
+                        TextField("65.00", value: $weight, format: .number.precision(.fractionLength(2)))
                             .font(.system(size: 56, weight: .bold, design: .rounded))
                             .foregroundColor(Color(hex: "43C776"))
                             .keyboardType(.decimalPad)
@@ -160,10 +163,19 @@ struct WeightInputView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
-                        dismiss()
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("完成") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                     }
                 }
+            }
+            .alert(comparisonTitle, isPresented: $showComparisonAlert) {
+                Button(comparisonButtonLabel) { dismiss() }
+            } message: {
+                Text(comparisonMessage)
             }
             .onAppear {
                 if let saved = UserDefaults.standard.object(forKey: "user_weight") as? Double, saved > 0 {
@@ -173,7 +185,33 @@ struct WeightInputView: View {
         }
     }
 
+    private var comparisonTitle: String {
+        if existingRecords.isEmpty { return "记录成功" }
+        if weightDiff < 0 { return "恭喜！体重下降了" }
+        if weightDiff > 0 { return "体重上升了" }
+        return "体重没有变化"
+    }
+
+    private var comparisonMessage: String {
+        guard !existingRecords.isEmpty else { return "这是你的第一次体重记录，继续加油" }
+        let absVal = String(format: "%.2f", abs(weightDiff))
+        if weightDiff < 0 { return "比上次轻了 \(absVal) kg，继续保持" }
+        if weightDiff > 0 { return "比上次重了 \(absVal) kg，注意饮食和运动" }
+        return "与上次记录相同，\(String(format: "%.2f", weight)) kg"
+    }
+
+    private var comparisonButtonLabel: String {
+        if weightDiff < 0 { return "太棒了" }
+        if weightDiff > 0 { return "知道了" }
+        return "好的"
+    }
+
     private func saveRecord() {
+        // Compute diff before inserting (existingRecords still has old data)
+        if let prev = existingRecords.first {
+            weightDiff = weight - prev.weight
+        }
+
         let record = WeightRecord(
             id: UUID(),
             weight: weight,
@@ -182,11 +220,13 @@ struct WeightInputView: View {
             photoData: selectedPhotoData
         )
         modelContext.insert(record)
-
-        // Also update current weight in UserDefaults
         UserDefaults.standard.set(weight, forKey: "user_weight")
 
-        dismiss()
+        if existingRecords.isEmpty {
+            // First ever record: show alert then dismiss inside alert action
+            weightDiff = 0
+        }
+        showComparisonAlert = true
     }
 }
 

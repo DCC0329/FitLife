@@ -38,6 +38,10 @@ struct ReportView: View {
     @State private var chartMode: WeightChartMode = .weight
     @State private var weightPeriod: WeightPeriod = .thirtyDays
     @State private var weightGrouping: WeightGrouping = .daily
+    @AppStorage("report_use_jin") private var useJin: Bool = false
+
+    private func displayWeight(_ kg: Double) -> Double { useJin ? kg * 2 : kg }
+    private var weightUnit: String { useJin ? "斤" : "kg" }
 
     // MARK: - Colors
 
@@ -168,9 +172,31 @@ struct ReportView: View {
 
     private var weightChartCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("体重趋势")
-                .font(.system(size: 17, weight: .bold))
-                .foregroundColor(chartPink)
+            HStack {
+                Text("体重趋势")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(chartPink)
+                Spacer()
+                // kg / 斤 切换
+                HStack(spacing: 0) {
+                    ForEach(["kg", "斤"], id: \.self) { unit in
+                        Button {
+                            withAnimation { useJin = (unit == "斤") }
+                        } label: {
+                            Text(unit)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor((useJin ? unit == "斤" : unit == "kg") ? .white : .secondary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 5)
+                                .background((useJin ? unit == "斤" : unit == "kg") ? chartPink : Color.clear)
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+                .padding(2)
+                .background(chartPinkLight)
+                .clipShape(Capsule())
+            }
 
             // Period selector
             HStack(spacing: 0) {
@@ -247,7 +273,7 @@ struct ReportView: View {
                 ForEach(weightChartRecords) { record in
                     AreaMark(
                         x: .value("日期", record.date),
-                        y: .value("体重", record.weight)
+                        y: .value("体重", displayWeight(record.weight))
                     )
                     .foregroundStyle(
                         LinearGradient(
@@ -260,7 +286,7 @@ struct ReportView: View {
 
                     LineMark(
                         x: .value("日期", record.date),
-                        y: .value("体重", record.weight)
+                        y: .value("体重", displayWeight(record.weight))
                     )
                     .foregroundStyle(chartLine)
                     .lineStyle(StrokeStyle(lineWidth: 1.5))
@@ -268,17 +294,17 @@ struct ReportView: View {
 
                     PointMark(
                         x: .value("日期", record.date),
-                        y: .value("体重", record.weight)
+                        y: .value("体重", displayWeight(record.weight))
                     )
                     .foregroundStyle(chartLine)
                     .symbolSize(18)
                 }
 
-                RuleMark(y: .value("目标体重", goalWeight))
+                RuleMark(y: .value("目标体重", displayWeight(goalWeight)))
                     .foregroundStyle(chartPink.opacity(0.35))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
                     .annotation(position: .top, alignment: .trailing) {
-                        Text("目标: \(goalWeight, specifier: "%.1f") kg")
+                        Text("目标: \(displayWeight(goalWeight), specifier: "%.2f") \(weightUnit)")
                             .font(.system(size: 9, weight: .medium))
                             .foregroundColor(chartPink)
                     }
@@ -288,11 +314,11 @@ struct ReportView: View {
 
             // Stats
             HStack(spacing: 0) {
-                weightStatItem(title: "最高", value: maxWeight)
+                weightStatItem(title: "最高", value: maxWeight.map { displayWeight($0) })
                 miniDivider
-                weightStatItem(title: "最低", value: minWeight)
+                weightStatItem(title: "最低", value: minWeight.map { displayWeight($0) })
                 miniDivider
-                weightStatItem(title: "平均", value: avgWeight)
+                weightStatItem(title: "平均", value: avgWeight.map { displayWeight($0) })
             }
         }
     }
@@ -394,9 +420,9 @@ struct ReportView: View {
     }
 
     private var chartYDomain: ClosedRange<Double> {
-        let weights = weightChartRecords.map(\.weight) + [goalWeight]
-        let lo = (weights.min() ?? 50) - 2
-        let hi = (weights.max() ?? 80) + 2
+        let weights = (weightChartRecords.map(\.weight) + [goalWeight]).map { displayWeight($0) }
+        let lo = (weights.min() ?? 50) - (useJin ? 4 : 2)
+        let hi = (weights.max() ?? 80) + (useJin ? 4 : 2)
         return lo...hi
     }
 
@@ -412,7 +438,7 @@ struct ReportView: View {
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
             if let value {
-                Text("\(value, specifier: "%.1f") kg")
+                Text("\(value, specifier: "%.2f") \(weightUnit)")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundColor(AppTheme.primaryText)
             } else {
@@ -448,7 +474,7 @@ struct ReportView: View {
         let periodDays = max(1, Calendar.current.dateComponents([.day], from: weightChartStartDate, to: min(Date(), Date())).day ?? 1)
         let weightChange: Double? = {
             guard let first = weightChartRecords.first?.weight, let last = weightChartRecords.last?.weight else { return nil }
-            return last - first
+            return displayWeight(last - first)
         }()
         let dailyChange: Double? = weightChange.map { $0 / Double(periodDays) }
 
@@ -458,7 +484,7 @@ struct ReportView: View {
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                 if let change = weightChange {
-                    Text(String(format: "%+.1f kg", change))
+                    Text(String(format: "%+.2f \(weightUnit)", change))
                         .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundColor(change <= 0 ? chartPink : .orange)
                 } else {
@@ -474,7 +500,7 @@ struct ReportView: View {
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                 if let daily = dailyChange {
-                    Text(String(format: "%+.2f kg", daily))
+                    Text(String(format: "%+.2f \(weightUnit)", daily))
                         .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundColor(daily <= 0 ? chartPink : .orange)
                 } else {

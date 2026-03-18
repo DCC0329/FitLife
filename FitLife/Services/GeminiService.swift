@@ -62,7 +62,7 @@ class GeminiService: AIServiceProtocol {
     static let shared = GeminiService()
 
     private let session: URLSession
-    private let model = "gemini-2.5-flash"
+    private let models = ["gemini-2.5-flash"]
 
     var apiKey: String? {
         get { UserDefaults.standard.string(forKey: "gemini_api_key") }
@@ -87,11 +87,6 @@ class GeminiService: AIServiceProtocol {
             throw GeminiError.invalidImage
         }
 
-        let urlString = "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)"
-        guard let url = URL(string: urlString) else {
-            throw GeminiError.invalidURL
-        }
-
         let prompt = """
         分析这张食物图片，返回JSON格式，包含foodName, calories, protein, carbs, fat, fiber, waterMl, suggestions字段。\
         其中calories/protein/carbs/fat/fiber单位为克(g)，waterMl单位为毫升(ml)。\
@@ -102,47 +97,14 @@ class GeminiService: AIServiceProtocol {
             "contents": [
                 [
                     "parts": [
-                        [
-                            "text": prompt
-                        ],
-                        [
-                            "inline_data": [
-                                "mime_type": "image/jpeg",
-                                "data": base64Image
-                            ]
-                        ]
+                        ["text": prompt],
+                        ["inline_data": ["mime_type": "image/jpeg", "data": base64Image]]
                     ]
                 ]
             ]
         ]
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch {
-            throw GeminiError.networkError(error)
-        }
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw GeminiError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            // Try to extract error message from response body
-            if let errorBody = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let error = errorBody["error"] as? [String: Any],
-               let message = error["message"] as? String {
-                throw GeminiError.apiError(message)
-            }
-            throw GeminiError.httpError(statusCode: httpResponse.statusCode)
-        }
-
+        let data = try await callWithFallback(apiKey: apiKey, body: requestBody)
         return try parseGeminiResponse(data: data)
     }
 
@@ -160,26 +122,11 @@ class GeminiService: AIServiceProtocol {
         \(numberedText)
         """
 
-        let urlString = "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)"
-        guard let url = URL(string: urlString) else {
-            throw GeminiError.invalidURL
-        }
-
         let requestBody: [String: Any] = [
             "contents": [["parts": [["text": prompt]]]]
         ]
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw GeminiError.invalidResponse
-        }
+        let data = try await callWithFallback(apiKey: apiKey, body: requestBody)
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let candidates = json["candidates"] as? [[String: Any]],
@@ -205,6 +152,54 @@ class GeminiService: AIServiceProtocol {
             .filter { !$0.isEmpty }
 
         return lines
+    }
+
+    // MARK: - Fallback Logic
+
+    private func callWithFallback(apiKey: String, body: [String: Any]) async throws -> Data {
+        var lastError: Error = GeminiError.invalidResponse
+        for model in models {
+            let urlString = "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)"
+            guard let url = URL(string: urlString) else { continue }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await session.data(for: request)
+            } catch {
+                lastError = GeminiError.networkError(error)
+                continue
+            }
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                lastError = GeminiError.invalidResponse
+                continue
+            }
+
+            if (200...299).contains(httpResponse.statusCode) {
+                return data
+            }
+
+            // 429 = rate limit，换下一个模型
+            if httpResponse.statusCode == 429 {
+                lastError = GeminiError.httpError(statusCode: 429)
+                continue
+            }
+
+            // 其他错误直接抛出
+            if let errorBody = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let error = errorBody["error"] as? [String: Any],
+               let message = error["message"] as? String {
+                throw GeminiError.apiError(message)
+            }
+            throw GeminiError.httpError(statusCode: httpResponse.statusCode)
+        }
+        throw lastError
     }
 
     // MARK: - Private

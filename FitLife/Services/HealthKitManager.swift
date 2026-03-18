@@ -299,6 +299,42 @@ class HealthKitManager: ObservableObject {
         }
     }
 
+    func fetchWeeklyCalories() async -> [(date: Date, calories: Double)] {
+        guard let healthStore, isAvailable else { return [] }
+        guard let calorieType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) else { return [] }
+
+        let calendar = Calendar.current
+        let endDate = Date()
+        guard let startDate = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: endDate)) else {
+            return []
+        }
+
+        var interval = DateComponents()
+        interval.day = 1
+        let anchorDate = calendar.startOfDay(for: startDate)
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKStatisticsCollectionQuery(
+                quantityType: calorieType,
+                quantitySamplePredicate: predicate,
+                options: .cumulativeSum,
+                anchorDate: anchorDate,
+                intervalComponents: interval
+            )
+            query.initialResultsHandler = { _, results, _ in
+                guard let results else { continuation.resume(returning: []); return }
+                var data: [(date: Date, calories: Double)] = []
+                results.enumerateStatistics(from: startDate, to: endDate) { statistics, _ in
+                    let kcal = statistics.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
+                    data.append((date: statistics.startDate, calories: kcal))
+                }
+                continuation.resume(returning: data)
+            }
+            healthStore.execute(query)
+        }
+    }
+
     // MARK: - Private Helpers
 
     private func fetchTodayStatistic(for identifier: HKQuantityTypeIdentifier, unit: HKUnit) async -> Double {
@@ -333,56 +369,104 @@ class HealthKitManager: ObservableObject {
 extension HKWorkoutActivityType {
     var commonName: String {
         switch self {
-        case .running: return "跑步"
-        case .walking: return "步行"
-        case .cycling: return "骑行"
-        case .swimming: return "游泳"
-        case .yoga: return "瑜伽"
-        case .functionalStrengthTraining, .traditionalStrengthTraining: return "力量训练"
+        // ── 跑步 / 步行 ──
+        case .running:                      return "跑步"
+        case .walking:                      return "步行"
+        case .wheelchairRunPace:            return "轮椅跑步"
+        case .wheelchairWalkPace:           return "轮椅步行"
+        // ── 骑行 ──
+        case .cycling:                      return "骑行"
+        case .handCycling:                  return "手摇车"
+        // ── 游泳 / 水上 ──
+        case .swimming:                     return "游泳"
+        case .waterFitness:                 return "水中健身"
+        case .waterPolo:                    return "水球"
+        case .waterSports:                  return "水上运动"
+        case .surfingSports:                return "冲浪"
+        case .paddleSports:                 return "皮划艇"
+        case .sailing:                      return "帆船"
+        case .underwaterDiving:             return "水下潜水"
+        // ── 力量 / 健身 ──
+        case .traditionalStrengthTraining:  return "力量训练"
+        case .functionalStrengthTraining:   return "功能性训练"
         case .highIntensityIntervalTraining: return "HIIT"
-        case .elliptical: return "椭圆机"
-        case .rowing: return "划船"
-        case .stairClimbing: return "爬楼梯"
-        case .coreTraining: return "核心训练"
-        case .dance, .socialDance, .cardioDance: return "舞蹈"
-        case .cooldown: return "放松"
-        case .jumpRope: return "跳绳"
-        case .boxing: return "拳击"
-        case .kickboxing: return "搏击"
-        case .pilates: return "普拉提"
-        case .hiking: return "徒步"
-        case .fitnessGaming: return "游戏健身"
-        case .mixedCardio: return "混合有氧"
-        case .crossTraining: return "交叉训练"
-        case .flexibility: return "拉伸"
-        case .mindAndBody: return "身心训练"
-        case .play: return "自由运动"
-        case .preparationAndRecovery: return "恢复训练"
-        case .skatingSports: return "滑冰"
-        case .snowSports: return "滑雪"
-        case .surfingSports: return "冲浪"
-        case .waterFitness: return "水中健身"
-        case .tennis: return "网球"
-        case .badminton: return "羽毛球"
-        case .tableTennis: return "乒乓球"
-        case .basketball: return "篮球"
-        case .soccer: return "足球"
-        case .baseball: return "棒球"
-        case .volleyball: return "排球"
-        case .golf: return "高尔夫"
-        case .martialArts: return "武术"
-        case .taiChi: return "太极"
-        case .wrestling: return "摔跤"
-        case .climbing: return "攀岩"
-        case .crossCountrySkiing: return "越野滑雪"
-        case .downhillSkiing: return "高山滑雪"
-        case .paddleSports: return "皮划艇"
-        case .trackAndField: return "田径"
-        case .other: return "其他运动"
+        case .coreTraining:                 return "核心训练"
+        case .crossTraining:                return "交叉训练"
+        case .mixedCardio:                  return "混合有氧"
+        case .stepTraining:                 return "踏步训练"
+        case .stairs:                       return "爬楼梯"
+        case .stairClimbing:                return "爬楼梯"
+        case .elliptical:                   return "椭圆机"
+        case .rowing:                       return "划船机"
+        case .jumpRope:                     return "跳绳"
+        case .barre:                        return "芭蕾把杆"
+        case .pilates:                      return "普拉提"
+        // ── 瑜伽 / 身心 ──
+        case .yoga:                         return "瑜伽"
+        case .mindAndBody:                  return "身心训练"
+        case .flexibility:                  return "柔韧性训练"
+        case .taiChi:                       return "太极拳"
+        // ── 舞蹈 ──
+        case .dance:                        return "舞蹈"
+        case .cardioDance:                  return "有氧舞蹈"
+        case .socialDance:                  return "社交舞蹈"
+        case .danceInspiredTraining:        return "舞蹈训练"
+        // ── 球类运动 ──
+        case .tennis:                       return "网球"
+        case .badminton:                    return "羽毛球"
+        case .tableTennis:                  return "乒乓球"
+        case .pickleball:                   return "匹克球"
+        case .squash:                       return "壁球"
+        case .racquetball:                  return "短柄墙球"
+        case .basketball:                   return "篮球"
+        case .soccer:                       return "足球"
+        case .baseball:                     return "棒球"
+        case .softball:                     return "垒球"
+        case .volleyball:                   return "排球"
+        case .handball:                     return "手球"
+        case .hockey:                       return "曲棍球"
+        case .rugby:                        return "橄榄球"
+        case .americanFootball:             return "美式橄榄球"
+        case .australianFootball:           return "澳式橄榄球"
+        case .cricket:                      return "板球"
+        case .lacrosse:                     return "长曲棍球"
+        case .discSports:                   return "飞盘运动"
+        case .golf:                         return "高尔夫"
+        case .bowling:                      return "保龄球"
+        case .curling:                      return "冰壶"
+        // ── 格斗 / 武术 ──
+        case .boxing:                       return "拳击"
+        case .kickboxing:                   return "自由搏击"
+        case .martialArts:                  return "武术"
+        case .wrestling:                    return "摔跤"
+        case .fencing:                      return "击剑"
+        // ── 户外运动 ──
+        case .hiking:                       return "徒步"
+        case .climbing:                     return "攀岩"
+        case .trackAndField:                return "田径"
+        case .equestrianSports:             return "马术"
+        case .archery:                      return "射箭"
+        case .hunting:                      return "狩猎"
+        case .fishing:                      return "钓鱼"
+        case .gymnastics:                   return "体操"
+        // ── 雪上运动 ──
+        case .snowSports:                   return "雪上运动"
+        case .downhillSkiing:               return "高山滑雪"
+        case .crossCountrySkiing:           return "越野滑雪"
+        case .snowboarding:                 return "单板滑雪"
+        // ── 滑冰 ──
+        case .skatingSports:                return "滑冰运动"
+        // ── 综合 / 特殊 ──
+        case .swimBikeRun:                  return "铁人三项"
+        case .transition:                   return "项目切换"
+        case .fitnessGaming:                return "游戏健身"
+        case .mixedMetabolicCardioTraining: return "混合代谢有氧"
+        case .cooldown:                     return "放松冷身"
+        case .preparationAndRecovery:       return "热身恢复"
+        case .play:                         return "自由运动"
+        case .other:                        return "其他运动"
         default:
-            // 未映射的类型，从枚举 debug 描述中提取英文名
             let raw = String(describing: self)
-            // 驼峰转空格，如 "handCycling" -> "Hand Cycling"
             let spaced = raw.unicodeScalars.reduce("") { result, scalar in
                 if CharacterSet.uppercaseLetters.contains(scalar) && !result.isEmpty {
                     return result + " " + String(scalar)

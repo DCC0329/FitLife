@@ -14,7 +14,6 @@ struct HomeView: View {
     @Query(sort: \DrinkRecord.date, order: .forward) private var allDrinkRecords: [DrinkRecord]
     @State private var showManualEntry = false
     @State private var showSleepInput = false
-    @State private var showDrinkInput = false
     @State private var selectedCalendarDate = Date()
     @State private var workoutData: [Date: [WorkoutInfo]] = [:]
     @State private var calendarMode: CalendarMode = .exercise
@@ -44,15 +43,21 @@ struct HomeView: View {
                         .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius))
                         .shadow(color: AppTheme.shadowColor, radius: AppTheme.shadowRadius, x: 0, y: AppTheme.shadowY)
 
-                        // 睡眠概况（右）- 点击编辑
-                        Button {
-                            showSleepInput = true
+                        // 睡眠概况（右）- 点击进入历史
+                        NavigationLink {
+                            SleepHistoryView()
                         } label: {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("睡眠概况")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.primary)
+                                HStack {
+                                    Text("睡眠概况")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(.secondary.opacity(0.5))
+                                }
                                 sleepCompactContent
                             }
                             .padding(12)
@@ -92,9 +97,6 @@ struct HomeView: View {
                     .onDisappear {
                         Task { await refreshSleepData() }
                     }
-            }
-            .sheet(isPresented: $showDrinkInput) {
-                DrinkInputView()
             }
         }
         .task {
@@ -149,21 +151,32 @@ struct HomeView: View {
     private var statCardsSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                StatCard(
-                    icon: "figure.walk",
-                    title: "步数",
-                    value: String(format: "%.0f", healthManager.todaySteps),
-                    color: AppTheme.primaryGreen
-                )
-                StatCard(
-                    icon: "flame.fill",
-                    title: "消耗(千卡)",
-                    value: String(format: "%.0f", totalTodayCalories),
-                    color: AppTheme.lavender
-                )
-                // Drink card - tappable
-                Button {
-                    showDrinkInput = true
+                NavigationLink {
+                    StepsHistoryView()
+                } label: {
+                    StatCard(
+                        icon: "figure.walk",
+                        title: "步数",
+                        value: String(format: "%.0f", healthManager.todaySteps),
+                        color: AppTheme.primaryGreen
+                    )
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
+                    ExerciseHistoryView()
+                } label: {
+                    StatCard(
+                        icon: "flame.fill",
+                        title: "消耗(千卡)",
+                        value: String(format: "%.0f", totalTodayCalories),
+                        color: AppTheme.lavender
+                    )
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
+                    DrinkHistoryView()
                 } label: {
                     StatCard(
                         icon: "drop.fill",
@@ -173,12 +186,18 @@ struct HomeView: View {
                     )
                 }
                 .buttonStyle(.plain)
-                StatCard(
-                    icon: "timer",
-                    title: "运动(分钟)",
-                    value: String(format: "%.0f", totalTodayMinutes),
-                    color: AppTheme.softBlue
-                )
+
+                NavigationLink {
+                    ExerciseHistoryView()
+                } label: {
+                    StatCard(
+                        icon: "timer",
+                        title: "运动(分钟)",
+                        value: String(format: "%.0f", totalTodayMinutes),
+                        color: AppTheme.softBlue
+                    )
+                }
+                .buttonStyle(.plain)
             }
             .padding(.vertical, 4)
         }

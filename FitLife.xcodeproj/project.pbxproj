@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BBB001DRINK0000000000001 /* DrinkHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA001DRINK0000000000001 /* DrinkHistoryView.swift */; };
+		BBB001SLEEP0000000000001 /* SleepHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA001SLEEP0000000000001 /* SleepHistoryView.swift */; };
 		06AA6041FEE12DC70C790819 /* CardioExercise.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A16D213A3BD4F57852014CC /* CardioExercise.swift */; };
 		090C17DE6C2BF9954957F7D0 /* CardioDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 825706FD5AF5E986972BF410 /* CardioDetailView.swift */; };
 		0B225B011EC620C45BF6A258 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F24D9E2F90EAC4BCF0883ED5 /* AppTheme.swift */; };
@@ -41,9 +43,13 @@
 		EF33A56297D7411F726BB2EA /* WeightInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0CCFA425C6A0087CE99831 /* WeightInputView.swift */; };
 		F4DBF5212C13293CF498450F /* FitLifeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66581DB4172B9B93A9810851 /* FitLifeApp.swift */; };
 		F7B04B10449179DBEC6D0CAF /* DataExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A03C9F32A4CB237F1DD8185 /* DataExporter.swift */; };
-/* End PBXBuildFile section */
+		AA000011 /* StepsHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000010 /* StepsHistoryView.swift */; };
+				AA000013 /* ExerciseHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000012 /* ExerciseHistoryView.swift */; };
+		/* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AAA001DRINK0000000000001 /* DrinkHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkHistoryView.swift; sourceTree = "<group>"; };
+		AAA001SLEEP0000000000001 /* SleepHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepHistoryView.swift; sourceTree = "<group>"; };
 		0C9D4A2AE9E6C631F26AD049 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		1109B7022F4B4BAC307FB150 /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
 		11726B203EF3693078684376 /* MoodRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodRecord.swift; sourceTree = "<group>"; };
@@ -81,7 +87,9 @@
 		F24D9E2F90EAC4BCF0883ED5 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		F8F92B88501A9C60866DA120 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
 		FA66ABBFE768AA3C53DEF85C /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
-/* End PBXFileReference section */
+		AA000010 /* StepsHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepsHistoryView.swift; sourceTree = "<group>"; };
+				AA000012 /* ExerciseHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseHistoryView.swift; sourceTree = "<group>"; };
+		/* End PBXFileReference section */
 
 /* Begin PBXGroup section */
 		2FE487AF2681C8E98C182A55 /* FitLife */ = {
@@ -107,6 +115,10 @@
 				3A3D8835C86A771FF32DE297 /* HomeView.swift */,
 				6F6F68EFAE05A17EF63590C9 /* MoodPickerView.swift */,
 				373200E55445ADE77ECE286F /* WeightCalendarView.swift */,
+				AAA001DRINK0000000000001 /* DrinkHistoryView.swift */,
+				AA000012 /* ExerciseHistoryView.swift */,
+				AA000010 /* StepsHistoryView.swift */,
+				AAA001SLEEP0000000000001 /* SleepHistoryView.swift */,
 			);
 			path = Home;
 			sourceTree = "<group>";
@@ -308,6 +320,10 @@
 				0B225B011EC620C45BF6A258 /* AppTheme.swift in Sources */,
 				E6FCE9A8877EE0E945905C1C /* BodyInfoEditView.swift in Sources */,
 				A9A27E9B2E66585575A0384F /* CalendarView.swift in Sources */,
+				BBB001DRINK0000000000001 /* DrinkHistoryView.swift in Sources */,
+				AA000013 /* ExerciseHistoryView.swift in Sources */,
+				AA000011 /* StepsHistoryView.swift in Sources */,
+				BBB001SLEEP0000000000001 /* SleepHistoryView.swift in Sources */,
 				924961C637B310700D5001F1 /* CameraView.swift in Sources */,
 				090C17DE6C2BF9954957F7D0 /* CardioDetailView.swift in Sources */,
 				06AA6041FEE12DC70C790819 /* CardioExercise.swift in Sources */,
